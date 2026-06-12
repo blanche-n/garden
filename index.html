@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rain & watering — Bohdalec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#ffffff;
+    --ink:#223240;
+    --ink-soft:#7a8893;
+    --line:#e6ecf3;
+    --rain:#427AA1;
+    --rain-deep:#2f5d7d;
+    --rain-soft:#EBF2FA;
+    --rain-ghost:#a9c4d6;
+    --plant:#679436;
+    --plant-deep:#4e7329;
+    --plant-soft:#eef4e6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Nunito",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding:34px 18px 48px;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  h1{
+    font-family:"Fredoka",sans-serif;
+    font-weight:600;font-size:38px;line-height:1.0;margin:0;
+    letter-spacing:-.01em;
+  }
+  h1 .leaf{color:var(--plant)}
+  .place{font-size:16px;color:var(--ink-soft);margin-top:8px;font-weight:700}
+
+  .legend{display:flex;gap:16px;align-items:center;font-size:13px;color:var(--ink-soft);font-weight:600}
+  .legend .key{display:flex;align-items:center;gap:7px}
+  .swatch{width:14px;height:14px;border-radius:5px}
+  .swatch.rain{background:var(--rain)}
+  .legend svg{width:17px;height:17px}
+
+  /* playful status line — no box, no gradient */
+  .status{margin:8px 0 26px}
+  .status .line1{
+    font-family:"Fredoka",sans-serif;font-size:26px;font-weight:500;line-height:1.15;
+    display:flex;align-items:center;gap:10px;
+  }
+  .status .line1::before{
+    content:"";width:12px;height:12px;border-radius:50%;
+    background:var(--plant);flex:0 0 auto;
+  }
+  .status.act .line1::before{background:var(--rain)}
+  .status .line2{font-size:15px;color:var(--ink-soft);margin-top:8px;font-weight:600;padding-left:22px}
+  .status .grn{color:var(--plant-deep)}
+  .status a{color:var(--rain-deep);font-weight:700}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:24px;
+    box-shadow:0 2px 0 var(--line);
+    padding:20px 20px 24px;
+  }
+
+  .monthbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .monthbar h2{
+    font-family:"Fredoka",sans-serif;font-weight:500;font-size:22px;margin:0;
+  }
+  .nav{display:flex;gap:8px}
+  .nav button{
+    width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);
+    background:var(--panel);color:var(--ink);cursor:pointer;font-size:18px;
+    display:flex;align-items:center;justify-content:center;transition:.14s;
+    font-family:"Fredoka",sans-serif;
+  }
+  .nav button:hover:not(:disabled){border-color:var(--plant);color:var(--plant);transform:translateY(-1px)}
+  .nav button:disabled{opacity:.3;cursor:default}
+  .nav button:focus-visible{outline:2px solid var(--plant);outline-offset:2px}
+
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
+  .dow span{text-align:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;font-family:"Fredoka",sans-serif}
+
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .cell{
+    position:relative;aspect-ratio:1/1.06;border-radius:15px;
+    border:1.5px solid var(--line);background:var(--panel);overflow:hidden;
+    cursor:pointer;transition:transform .13s, border-color .13s, box-shadow .13s;
+  }
+  .cell.empty{border:none;background:transparent;cursor:default}
+  .cell:not(.empty):hover{transform:translateY(-2px);border-color:#d2dccb;box-shadow:0 5px 0 var(--line)}
+  .cell:focus-visible{outline:2px solid var(--plant);outline-offset:2px}
+  .cell.future{cursor:default;background:var(--rain-soft);border-style:dashed}
+  .cell.future .num{color:var(--ink-soft)}
+
+  .fill{position:absolute;left:0;right:0;bottom:0;background:var(--rain);
+    transition:height .42s cubic-bezier(.3,1.1,.5,1);z-index:0}
+  .cell.future .fill{background:var(--rain-ghost)}
+
+  .num{position:absolute;top:7px;left:10px;font-size:15px;font-weight:500;z-index:2;
+    font-family:"Fredoka",sans-serif}
+  .cell.today .num{color:var(--rain-deep)}
+  .cell.today{border-color:var(--rain);box-shadow:inset 0 0 0 1.5px var(--rain)}
+
+  .mm{position:absolute;left:0;right:0;bottom:7px;text-align:center;
+    font-size:13px;font-weight:500;z-index:2;
+    font-family:"Fredoka",sans-serif;color:var(--rain-deep)}
+  .cell.wet .mm{color:#fff;text-shadow:0 1px 2px rgba(18,32,49,.35)}
+  .mm.dry{color:#c4cdba}
+
+  .plant{position:absolute;top:5px;right:5px;width:28px;height:28px;z-index:3;
+    display:flex;align-items:center;justify-content:center;border-radius:50%;
+    transition:background .15s}
+  .plant svg{width:22px;height:22px;display:block}
+  .seed-off{stroke:#c3ccd6;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .seed-on-stem{stroke:var(--plant-deep);stroke-width:1.7;stroke-linecap:round}
+  .seed-on-leaf{fill:var(--plant);stroke:var(--plant-deep);stroke-width:1.2;stroke-linejoin:round}
+  .cell.watered .plant{background:var(--plant-soft)}
+  @keyframes grow{0%{transform:scale(.35) translateY(3px);opacity:0}55%{transform:scale(1.2) translateY(0);opacity:1}100%{transform:scale(1)}}
+  .plant.pop svg{animation:grow .36s cubic-bezier(.34,1.45,.5,1)}
+
+  .hint{font-size:13px;color:var(--ink-soft);margin-top:14px;text-align:center;font-weight:600}
+  .foot{margin-top:16px;font-size:12px;color:var(--ink-soft);text-align:center;font-weight:600}
+  .foot a{color:var(--ink-soft)}
+  .loading{opacity:.5}
+
+  @media (max-width:520px){
+    body{padding:22px 12px 36px}
+    h1{font-size:32px}
+    .status .line1{font-size:22px}
+    .num{font-size:13px}
+    .mm{font-size:11px}
+    .plant{width:24px;height:24px}
+    .plant svg{width:18px;height:18px}
+    .legend{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title-block">
+      <h1>Rain &amp; <span class="leaf">watering</span></h1>
+      <div class="place">Praha — Bohdalec</div>
+    </div>
+    <div class="legend">
+      <div class="key"><span class="swatch rain"></span> rain (mm)</div>
+      <div class="key">
+        <svg viewBox="0 0 24 24"><path class="seed-on-stem" d="M12 21V12"/><path class="seed-on-leaf" d="M12 13c-.3-3.4-3.6-4.6-7-3.6 1 3.4 3.9 4.4 7 3.6z"/><path class="seed-on-leaf" d="M12 11c.3-3 3.4-4 6.5-3 -.9 3-3.6 3.9-6.5 3z"/></svg>
+        watered
+      </div>
+    </div>
+  </header>
+
+  <div class="status" id="status">
+    <div class="line1" id="statusLine1">Reading the sky over Bohdalec…</div>
+    <div class="line2" id="statusLine2"></div>
+  </div>
+
+  <div class="panel">
+    <div class="monthbar">
+      <h2 id="monthLabel">…</h2>
+      <div class="nav">
+        <button id="prev" aria-label="Previous month" title="Previous month">‹</button>
+        <button id="today" aria-label="This month" title="This month">•</button>
+        <button id="next" aria-label="Next month" title="Next month">›</button>
+      </div>
+    </div>
+
+    <div class="dow">
+      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="hint">Tap a day to grow a seedling — that means you watered.</div>
+  </div>
+
+  <div class="foot">Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · watering log saved in your browser</div>
+</div>
+
+<script>
+const LAT = 50.0527, LON = 14.4670;
+const RAIN_MM = 0.2;
+const FULL_MM = 20;
+const TZ = "Europe/Prague";
+
+const precip = new Map();
+let watered = {};
+let earliestKnown = null, latestKnown = null, forecastHorizon = null;
+let justToggled = null;
+let weatherReady = false, weatherError = false;
+const today = new Date();
+const todayStr = iso(today);
+let view = new Date(today.getFullYear(), today.getMonth(), 1);
+
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function parseISO(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);}
+function dayDiff(a,b){return Math.round((parseISO(a)-parseISO(b))/86400000);}
+function plural(n){ return n===1 ? "day" : "days"; }
+
+/* ---------- storage (saved in the browser via localStorage) ---------- */
+function loadWatering(){
+  try{
+    const raw = localStorage.getItem("garden-watering-log");
+    if(raw) watered = JSON.parse(raw);
+  }catch(e){ watered = watered || {}; }
+}
+function saveWatering(){
+  try{ localStorage.setItem("garden-watering-log", JSON.stringify(watered)); }
+  catch(e){ /* storage blocked: keep in memory for this session */ }
+}
+
+/* ---------- weather ---------- */
+// Open-Meteo occasionally returns transient 503s; retry a few times with backoff.
+async function fetchJSON(url, tries=4){
+  let lastErr;
+  for(let i=0;i<tries;i++){
+    try{
+      const res = await fetch(url, { cache:"no-store" });
+      if(res.ok) return await res.json();
+      lastErr = new Error("HTTP " + res.status);
+    }catch(e){ lastErr = e; }
+    if(i < tries-1) await new Promise(r => setTimeout(r, 600*(i+1)));  // 0.6s, 1.2s, 1.8s
+  }
+  throw lastErr || new Error("fetch failed");
+}
+async function fetchRolling(){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
+    + `&daily=precipitation_sum&past_days=92&forecast_days=16&timezone=${encodeURIComponent(TZ)}`;
+  mergeDaily(await fetchJSON(url));
+  forecastHorizon = latestKnown;
+}
+async function fetchArchive(start, end){
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}`
+    + `&start_date=${start}&end_date=${end}&daily=precipitation_sum&timezone=${encodeURIComponent(TZ)}`;
+  mergeDaily(await fetchJSON(url));
+}
+function mergeDaily(j){
+  if(!j || !j.daily || !j.daily.time) return;
+  const t = j.daily.time, p = j.daily.precipitation_sum;
+  for(let i=0;i<t.length;i++){
+    const v = (p[i]==null) ? 0 : p[i];
+    precip.set(t[i], v);
+    if(!earliestKnown || t[i] < earliestKnown) earliestKnown = t[i];
+    if(!latestKnown   || t[i] > latestKnown)   latestKnown = t[i];
+  }
+}
+async function ensureMonth(d){
+  const first = iso(new Date(d.getFullYear(), d.getMonth(), 1));
+  const last  = iso(new Date(d.getFullYear(), d.getMonth()+1, 0));
+  if(earliestKnown && first < earliestKnown && first < todayStr){
+    try{ await fetchArchive(first, last < todayStr ? last : todayStr); }catch(e){}
+  }
+}
+
+/* ---------- rendering ---------- */
+const grid = document.getElementById("grid");
+const monthLabel = document.getElementById("monthLabel");
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+const SEED_OFF = '<svg viewBox="0 0 24 24"><path class="seed-off" d="M12 21V12"/><path class="seed-off" d="M12 13c-.3-3.4-3.6-4.6-7-3.6 1 3.4 3.9 4.4 7 3.6z"/><path class="seed-off" d="M12 11c.3-3 3.4-4 6.5-3 -.9 3-3.6 3.9-6.5 3z"/></svg>';
+const SEED_ON  = '<svg viewBox="0 0 24 24"><path class="seed-on-stem" d="M12 21V12"/><path class="seed-on-leaf" d="M12 13c-.3-3.4-3.6-4.6-7-3.6 1 3.4 3.9 4.4 7 3.6z"/><path class="seed-on-leaf" d="M12 11c.3-3 3.4-4 6.5-3 -.9 3-3.6 3.9-6.5 3z"/></svg>';
+
+function render(){
+  const y = view.getFullYear(), m = view.getMonth();
+  monthLabel.textContent = MONTHS[m] + " " + y;
+
+  let lead = new Date(y, m, 1).getDay();
+  lead = (lead + 6) % 7;
+  const days = new Date(y, m+1, 0).getDate();
+
+  grid.innerHTML = "";
+  for(let i=0;i<lead;i++){
+    const e = document.createElement("div"); e.className="cell empty"; grid.appendChild(e);
+  }
+  for(let d=1; d<=days; d++){
+    const ds = iso(new Date(y,m,d));
+    const cell = document.createElement("div");
+    cell.className = "cell"; cell.tabIndex = 0;
+    const isFuture = ds > todayStr;
+    if(isFuture) cell.classList.add("future");
+    if(ds === todayStr) cell.classList.add("today");
+
+    const mm = precip.has(ds) ? precip.get(ds) : null;
+    const wet = mm != null && mm >= RAIN_MM;
+    if(wet) cell.classList.add("wet");
+    if(watered[ds]) cell.classList.add("watered");
+
+    const fill = document.createElement("div"); fill.className="fill";
+    fill.style.height = (mm == null ? 0 : Math.min(mm / FULL_MM, 1) * 100) + "%";
+    cell.appendChild(fill);
+
+    const num = document.createElement("div"); num.className="num"; num.textContent=d; cell.appendChild(num);
+
+    const lab = document.createElement("div");
+    lab.className = "mm" + (wet ? "" : " dry");
+    lab.textContent = mm == null ? "" : (mm === 0 ? "0" : mm.toFixed(1));
+    cell.appendChild(lab);
+
+    if(!isFuture){
+      const plant = document.createElement("div");
+      plant.className = "plant" + (watered[ds] && ds===justToggled ? " pop" : "");
+      plant.innerHTML = watered[ds] ? SEED_ON : SEED_OFF;
+      cell.appendChild(plant);
+      const toggle = ()=>{
+        if(watered[ds]){ delete watered[ds]; justToggled=null; }
+        else { watered[ds]=true; justToggled=ds; }
+        saveWatering(); render();
+      };
+      cell.addEventListener("click", toggle);
+      cell.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle();} });
+    }
+    grid.appendChild(cell);
+  }
+  justToggled = null;
+  updateNav();
+  updateStatus();
+}
+
+function updateNav(){
+  const minD = new Date(2015,0,1);
+  const maxD = forecastHorizon ? parseISO(forecastHorizon) : today;
+  const prevD = new Date(view.getFullYear(), view.getMonth()-1, 1);
+  const nextD = new Date(view.getFullYear(), view.getMonth()+1, 1);
+  document.getElementById("prev").disabled = prevD < new Date(minD.getFullYear(), minD.getMonth(), 1);
+  document.getElementById("next").disabled = nextD > new Date(maxD.getFullYear(), maxD.getMonth(), 1);
+}
+
+/* ---------- watering advice ---------- */
+const COVER_MM = 10;      // rain over the last 4 days that means "no need to water"
+const WAIT_TMR_MM = 8;    // heavy rain tomorrow worth waiting for
+const DRY_DAYS = 4;       // more than this many dry days -> definitely water
+
+function getLastWater(){
+  let last = null;
+  for(const k in watered){ if(k <= todayStr && (!last || k > last)) last = k; }
+  return last;
+}
+function rainLastN(n){
+  let t = 0;
+  for(let i=0;i<n;i++){ const ds = iso(new Date(today.getFullYear(), today.getMonth(), today.getDate()-i)); t += (precip.get(ds) || 0); }
+  return t;
+}
+function rainedSinceWater(lastStr){
+  const s = parseISO(lastStr);
+  for(let dt = new Date(s.getFullYear(), s.getMonth(), s.getDate()+1); iso(dt) <= todayStr; dt.setDate(dt.getDate()+1)){
+    if((precip.get(iso(dt)) || 0) >= RAIN_MM) return true;
+  }
+  return false;
+}
+function tomorrowMM(){
+  return precip.get(iso(new Date(today.getFullYear(), today.getMonth(), today.getDate()+1))) || 0;
+}
+function wateringAdvice(){
+  const last = getLastWater();
+  const dsw  = last ? dayDiff(todayStr, last) : null;   // days since watering
+  const rain4 = rainLastN(4);                           // rolling 4-day rain total
+  const tmr   = tomorrowMM();
+
+  if(dsw === 0) return { t:"Watered today — all set.", act:false };
+  if(dsw === 1) return { t:"Watered yesterday — the soil's still happy.", act:false };
+
+  const noRainSince = (last != null) && !rainedSinceWater(last);
+
+  // plenty of recent rain -> skip
+  if(rain4 >= COVER_MM) return { t:`No need to water — ${rain4.toFixed(1)} mm of rain in the last 4 days.`, act:false };
+  // a good soak is coming tomorrow -> wait, even after a dry spell
+  if(tmr >= WAIT_TMR_MM) return { t:`You can wait — about ${tmr.toFixed(1)} mm of rain is coming tomorrow.`, act:false };
+  // been a while AND bone dry, with no big rain on the way -> definitely water
+  if(last != null && dsw > DRY_DAYS && noRainSince) return { t:`Time to water — ${dsw} dry days since you last watered.`, act:true };
+  // watered the day before yesterday, dry-ish -> water today or tomorrow
+  if(dsw === 2) return { t:`Worth a water today or tomorrow — only ${rain4.toFixed(1)} mm of rain lately.`, act:true };
+  // longer gaps
+  if(dsw != null) return { t:`Time to water — last watered ${dsw} days ago.`, act:true };
+  // nothing logged yet
+  return { t:"No watering logged yet — give it a drink?", act:true };
+}
+
+function updateStatus(){
+  const box = document.getElementById("status");
+  const l1 = document.getElementById("statusLine1");
+  const l2 = document.getElementById("statusLine2");
+
+  if(!weatherReady){
+    box.classList.remove("act");
+    l2.textContent = "";
+    if(weatherError){
+      l1.innerHTML = `Couldn't reach the weather service — <a href="#" id="retry">try again</a>.`;
+      const r = document.getElementById("retry");
+      if(r) r.onclick = (ev)=>{ ev.preventDefault(); loadWeather(); };
+    } else {
+      l1.textContent = "Reading the sky over Bohdalec…";
+    }
+    return;
+  }
+
+  const adv = wateringAdvice();
+  l1.textContent = adv.t;
+  box.classList.toggle("act", adv.act);
+
+  const todayMM = precip.has(todayStr) ? precip.get(todayStr) : null;
+  const rainedToday = todayMM != null && todayMM >= RAIN_MM;
+
+  // last rain
+  let lastRain = null;
+  for(let i=0;i<400;i++){
+    const ds = iso(new Date(today.getFullYear(), today.getMonth(), today.getDate()-i));
+    if(precip.has(ds) && precip.get(ds) >= RAIN_MM){ lastRain = ds; break; }
+    if(earliestKnown && ds < earliestKnown) break;
+  }
+  let rainPart;
+  if(rainedToday) rainPart = `Rained today (${todayMM.toFixed(1)} mm)`;
+  else if(lastRain){ const n = dayDiff(todayStr, lastRain); rainPart = `No rain for ${n} ${plural(n)}`; }
+  else rainPart = `No rain on record`;
+
+  // next rain from forecast
+  let nextRain = null, nextMM = 0;
+  for(let i=1;i<=16;i++){
+    const ds = iso(new Date(today.getFullYear(), today.getMonth(), today.getDate()+i));
+    if(forecastHorizon && ds > forecastHorizon) break;
+    if(precip.has(ds) && precip.get(ds) >= RAIN_MM){ nextRain = ds; nextMM = precip.get(ds); break; }
+  }
+  let fcPart;
+  if(nextRain){
+    const n = dayDiff(nextRain, todayStr); const dd = parseISO(nextRain);
+    fcPart = (n===1)
+      ? `rain expected tomorrow (~${nextMM.toFixed(1)} mm)`
+      : `next rain in ${n} ${plural(n)} — ${dd.getDate()} ${MONTHS[dd.getMonth()].slice(0,3)} (~${nextMM.toFixed(1)} mm)`;
+  } else {
+    const h = forecastHorizon ? dayDiff(forecastHorizon, todayStr) : 16;
+    fcPart = `no rain in sight (${h} ${plural(h)}) — grabbing the watering can`;
+  }
+  l2.innerHTML = `${rainPart} · <span class="grn">${fcPart}</span>`;
+}
+
+/* ---------- controls ---------- */
+document.getElementById("prev").addEventListener("click", async ()=>{
+  view = new Date(view.getFullYear(), view.getMonth()-1, 1);
+  grid.classList.add("loading"); await ensureMonth(view); grid.classList.remove("loading"); render();
+});
+document.getElementById("next").addEventListener("click", async ()=>{
+  view = new Date(view.getFullYear(), view.getMonth()+1, 1);
+  grid.classList.add("loading"); await ensureMonth(view); grid.classList.remove("loading"); render();
+});
+document.getElementById("today").addEventListener("click", ()=>{
+  view = new Date(today.getFullYear(), today.getMonth(), 1); render();
+});
+
+async function loadWeather(){
+  weatherError = false; weatherReady = false;
+  grid.classList.add("loading"); render();
+  try{
+    await fetchRolling();
+    weatherReady = true;
+  }catch(e){
+    weatherError = true;
+  }
+  grid.classList.remove("loading");
+  render();
+}
+
+(function init(){
+  loadWatering();
+  render();
+  loadWeather();
+})();
+</script>
+</body>
+</html>
