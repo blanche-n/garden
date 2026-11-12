@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Rain & watering — Bohdalec</title>
+<title>Rain & watering — Benešov</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
@@ -63,6 +63,7 @@
   .status .line2{font-size:15px;color:var(--ink-soft);margin-top:8px;font-weight:600;padding-left:22px}
   .status .grn{color:var(--plant-deep)}
   .status a{color:var(--rain-deep);font-weight:700}
+  .status .season{font-size:12px;color:var(--ink-soft);margin-top:10px;padding-left:22px;font-weight:600;letter-spacing:.01em}
 
   .panel{
     background:var(--panel);
@@ -150,7 +151,7 @@
   <header class="top">
     <div class="title-block">
       <h1>Rain &amp; <span class="leaf">watering</span></h1>
-      <div class="place">Praha — Bohdalec</div>
+      <div class="place">Benešov u Prahy</div>
     </div>
     <div class="legend">
       <div class="key"><span class="swatch rain"></span> rain (mm)</div>
@@ -162,8 +163,9 @@
   </header>
 
   <div class="status" id="status">
-    <div class="line1" id="statusLine1">Reading the sky over Bohdalec…</div>
+    <div class="line1" id="statusLine1">Reading the sky over Benešov…</div>
     <div class="line2" id="statusLine2"></div>
+    <div class="season" id="seasonNote"></div>
   </div>
 
   <div class="panel">
@@ -187,7 +189,7 @@
 </div>
 
 <script>
-const LAT = 50.0527, LON = 14.4670;
+const LAT = 49.7816, LON = 14.6870;
 const RAIN_MM = 0.2;
 const FULL_MM = 20;
 const TZ = "Europe/Prague";
@@ -334,10 +336,23 @@ function updateNav(){
   document.getElementById("next").disabled = nextD > new Date(maxD.getFullYear(), maxD.getMonth(), 1);
 }
 
-/* ---------- watering advice ---------- */
-const COVER_MM = 10;      // rain over the last 4 days that means "no need to water"
-const WAIT_TMR_MM = 8;    // heavy rain tomorrow worth waiting for
-const DRY_DAYS = 4;       // more than this many dry days -> definitely water
+/* ---------- watering advice (season-aware) ---------- */
+// Per season: COVER = mm over 4 days that means "no need"; WAIT = heavy rain tomorrow worth
+// waiting for; SOFT = days since watering before a gentle nudge; HARD = dry days before
+// "definitely water". Autumn/winter are easier on watering than summer. Tweak freely.
+const SEASONS = {
+  spring: { label:"Spring", COVER:8,  WAIT:7, SOFT:3, HARD:6,  note:"Spring — moderate watering." },
+  summer: { label:"Summer", COVER:10, WAIT:8, SOFT:2, HARD:4,  note:"Summer — the thirsty season, water often." },
+  autumn: { label:"Autumn", COVER:6,  WAIT:6, SOFT:4, HARD:7,  note:"Autumn — cooler and slower, so watering's eased off." },
+  winter: { label:"Winter", COVER:4,  WAIT:5, SOFT:8, HARD:14, note:"Winter — the garden's mostly resting." },
+};
+function season(){
+  const m = today.getMonth();              // 0 = Jan
+  if(m>=2 && m<=4)  return SEASONS.spring;  // Mar–May
+  if(m>=5 && m<=7)  return SEASONS.summer;  // Jun–Aug
+  if(m>=8 && m<=10) return SEASONS.autumn;  // Sep–Nov
+  return SEASONS.winter;                    // Dec–Feb
+}
 
 function getLastWater(){
   let last = null;
@@ -360,6 +375,7 @@ function tomorrowMM(){
   return precip.get(iso(new Date(today.getFullYear(), today.getMonth(), today.getDate()+1))) || 0;
 }
 function wateringAdvice(){
+  const s = season();
   const last = getLastWater();
   const dsw  = last ? dayDiff(todayStr, last) : null;   // days since watering
   const rain4 = rainLastN(4);                           // rolling 4-day rain total
@@ -371,15 +387,15 @@ function wateringAdvice(){
   const noRainSince = (last != null) && !rainedSinceWater(last);
 
   // plenty of recent rain -> skip
-  if(rain4 >= COVER_MM) return { t:`No need to water — ${rain4.toFixed(1)} mm of rain in the last 4 days.`, act:false };
+  if(rain4 >= s.COVER) return { t:`No need to water — ${rain4.toFixed(1)} mm of rain in the last 4 days.`, act:false };
   // a good soak is coming tomorrow -> wait, even after a dry spell
-  if(tmr >= WAIT_TMR_MM) return { t:`You can wait — about ${tmr.toFixed(1)} mm of rain is coming tomorrow.`, act:false };
+  if(tmr >= s.WAIT) return { t:`You can wait — about ${tmr.toFixed(1)} mm of rain is coming tomorrow.`, act:false };
   // been a while AND bone dry, with no big rain on the way -> definitely water
-  if(last != null && dsw > DRY_DAYS && noRainSince) return { t:`Time to water — ${dsw} dry days since you last watered.`, act:true };
-  // watered the day before yesterday, dry-ish -> water today or tomorrow
-  if(dsw === 2) return { t:`Worth a water today or tomorrow — only ${rain4.toFixed(1)} mm of rain lately.`, act:true };
-  // longer gaps
-  if(dsw != null) return { t:`Time to water — last watered ${dsw} days ago.`, act:true };
+  if(last != null && dsw >= s.HARD && noRainSince) return { t:`Time to water — ${dsw} dry days since you last watered.`, act:true };
+  // past the season's comfortable interval -> gentle nudge
+  if(dsw != null && dsw >= s.SOFT) return { t:`Worth a water soon — last watered ${dsw} days ago.`, act:true };
+  // watered recently enough for the season -> relax
+  if(dsw != null) return { t:`Watered ${dsw} days ago — soil's probably still fine.`, act:false };
   // nothing logged yet
   return { t:"No watering logged yet — give it a drink?", act:true };
 }
@@ -389,6 +405,8 @@ function updateStatus(){
   const l1 = document.getElementById("statusLine1");
   const l2 = document.getElementById("statusLine2");
 
+  document.getElementById("seasonNote").textContent = season().note;
+
   if(!weatherReady){
     box.classList.remove("act");
     l2.textContent = "";
@@ -397,7 +415,7 @@ function updateStatus(){
       const r = document.getElementById("retry");
       if(r) r.onclick = (ev)=>{ ev.preventDefault(); loadWeather(); };
     } else {
-      l1.textContent = "Reading the sky over Bohdalec…";
+      l1.textContent = "Reading the sky over Benešov…";
     }
     return;
   }
